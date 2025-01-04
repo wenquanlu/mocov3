@@ -51,7 +51,7 @@ parser.add_argument('-a', '--arch', metavar='ARCH', default='resnet50',
                     help='model architecture: ' +
                         ' | '.join(model_names) +
                         ' (default: resnet50)')
-parser.add_argument('-j', '--workers', default=32, type=int, metavar='N',
+parser.add_argument('-j', '--workers', default=20, type=int, metavar='N',
                     help='number of data loading workers (default: 32)')
 parser.add_argument('--epochs', default=100, type=int, metavar='N',
                     help='number of total epochs to run')
@@ -116,6 +116,7 @@ parser.add_argument('--warmup-epochs', default=10, type=int, metavar='N',
                     help='number of warmup epochs')
 parser.add_argument('--crop-min', default=0.08, type=float,
                     help='minimum scale for random cropping (default: 0.08)')
+parser.add_argument('--out', default='')
 
 
 def main():
@@ -187,7 +188,8 @@ def main_worker(gpu, ngpus_per_node, args):
             args.moco_dim, args.moco_mlp_dim, args.moco_t)
 
     # infer learning rate before changing batch size
-    args.lr = args.lr * args.batch_size / 256
+    #args.lr = args.lr * args.batch_size / 256
+    args.lr = 0.00014142135
 
     if not torch.cuda.is_available():
         print('using CPU, this will be slow')
@@ -226,6 +228,7 @@ def main_worker(gpu, ngpus_per_node, args):
                                         weight_decay=args.weight_decay,
                                         momentum=args.momentum)
     elif args.optimizer == 'adamw':
+        print(args.lr, "!!!!!!!!!!!!!!!!!!!!!!!")
         optimizer = torch.optim.AdamW(model.parameters(), args.lr,
                                 weight_decay=args.weight_decay)
         
@@ -305,15 +308,15 @@ def main_worker(gpu, ngpus_per_node, args):
         # train for one epoch
         train(train_loader, model, optimizer, scaler, summary_writer, epoch, args)
 
-        if not args.multiprocessing_distributed or (args.multiprocessing_distributed
-                and args.rank == 0): # only the first GPU saves checkpoint
+        if ((not args.multiprocessing_distributed) or (args.multiprocessing_distributed
+                and args.rank == 0)) and (epoch+1)%5==0: # only the first GPU saves checkpoint
             save_checkpoint({
                 'epoch': epoch + 1,
                 'arch': args.arch,
                 'state_dict': model.state_dict(),
                 'optimizer' : optimizer.state_dict(),
                 'scaler': scaler.state_dict(),
-            }, is_best=False, filename='checkpoint_%04d.pth.tar' % epoch)
+            }, is_best=False, filename=args.out + "/" + 'checkpoint_%04d.pth.tar' % epoch)
 
     if args.rank == 0:
         summary_writer.close()
