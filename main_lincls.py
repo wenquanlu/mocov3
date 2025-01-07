@@ -85,6 +85,7 @@ parser.add_argument('--multiprocessing-distributed', action='store_true',
                          'N processes per node, which has N GPUs. This is the '
                          'fastest way to use PyTorch for either single node or '
                          'multi node data parallel training')
+parser.add_argument('--out', default='')
 
 # additional configs:
 parser.add_argument('--pretrained', default='', type=str,
@@ -322,7 +323,7 @@ def main_worker(gpu, ngpus_per_node, args):
                 'state_dict': model.state_dict(),
                 'best_acc1': best_acc1,
                 'optimizer' : optimizer.state_dict(),
-            }, is_best)
+            }, is_best, args.out)
             if epoch == args.start_epoch:
                 sanity_check(model.state_dict(), args.pretrained, linear_keyword)
 
@@ -425,10 +426,10 @@ def validate(val_loader, model, criterion, args):
     return top1.avg
 
 
-def save_checkpoint(state, is_best, filename='checkpoint.pth.tar'):
-    torch.save(state, filename)
+def save_checkpoint(state, is_best, out, filename='checkpoint.pth.tar'):
+    torch.save(state, out + "/" + filename)
     if is_best:
-        shutil.copyfile(filename, 'model_best.pth.tar')
+        shutil.copyfile(out + "/" + filename, out + "/" + 'model_best.pth.tar')
 
 
 def sanity_check(state_dict, pretrained_weights, linear_keyword):
